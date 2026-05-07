@@ -26,28 +26,30 @@ MultiChainNFT contract in that repo.
 
 ```
 contracts-evm/    Foundry — IndexedNFT.sol with Transfer + Minted events the indexer consumes.
-indexer/          Rust crate — chain watcher, REST API, SIWE auth, WebSocket fanout.
+indexer/          Rust crate — chain watcher, REST API, SIWE auth, WebSocket fanout, pgvector similarity.
   src/main.rs     Bootstrap: load config, start chain task, serve axum.
-  src/chain/evm.rs Subscribes to logs, decodes Transfer/Minted, persists, broadcasts.
-  src/api/        axum routes: stats, events, nfts, holders, /api/me, /auth/{nonce,verify}.
+  src/chain/evm.rs Subscribes to logs, decodes Transfer/Minted, persists, embeds, broadcasts.
+  src/embed.rs    Hash-trick text → vector(384); swap for fastembed / OpenAI in one place.
+  src/api/        axum routes: stats, events, nfts, nfts/similar, holders, /api/me, /auth/{nonce,verify}.
   src/auth.rs     JWT issue/verify (HS256, 12h).
   src/ws.rs       /ws/events broadcast subscriber.
-  migrations/     SQL schema (events, nfts, auth_nonces, indexer_state).
+  migrations/     SQL schema + pgvector extension + ivfflat index on nfts.embedding.
   openapi.yaml    Hand-written API spec.
 dashboard/        Next.js 14 — stats, SIWE login, live event feed.
-docker-compose.yml  Postgres + indexer + dashboard local stack.
+subgraph/         The Graph alternative for the same events (source-only comparison).
+docker-compose.yml  Postgres+pgvector + indexer + dashboard local stack.
 ```
 
 ## What's verified
 
 | Suite                                 | Status                                         |
 | ------------------------------------- | ---------------------------------------------- |
-| `forge test` — `contracts-evm/`       | **6/6 passing** (incl. 1 fuzz test)            |
-| `cargo test` — `indexer/`             | **9/9 passing** (auth + validation modules)    |
-| `cargo build` — `indexer/`            | **green**                                      |
-| `npm run build` — `dashboard/`        | **green**                                      |
-| `npx playwright test` — `dashboard/`  | **8/8 passing** across UI + SIWE round-trip    |
-| `redocly lint indexer/openapi.yaml`   | **valid**                                      |
+| `forge test` — `contracts-evm/`       | **6/6 passing** (incl. 1 fuzz test)               |
+| `cargo test` — `indexer/`             | **14/14 passing** (auth, validation, embedding)   |
+| `cargo build` — `indexer/`            | **green**                                         |
+| `npm run build` — `dashboard/`        | **green**                                         |
+| `npx playwright test` — `dashboard/`  | **10/10 passing** UI + SIWE round-trip + similar  |
+| `redocly lint indexer/openapi.yaml`   | **valid**                                         |
 
 The Playwright SIWE round-trip uses a real `viem` private key to sign EIP-4361
 messages and posts them to a small `tests/mock-indexer.mjs` server that runs
@@ -129,6 +131,34 @@ The indexer accepts only signatures that match `SIWE_DOMAIN`, preventing a
 malicious site from harvesting valid signatures and reusing them here. Nonces
 are single-use, so a replayed `(message, signature)` pair fails on the second
 `verify`.
+
+## Similarity search (pgvector)
+
+Each `Minted` event triggers an embedding pass: `src/embed.rs` runs a
+deterministic hash-trick projection from the NFT's `(contract, token_id, uri)`
+text into a `vector(384)`, persisted onto the `nfts.embedding` column. The
+column is indexed with `ivfflat (vector_cosine_ops)`.
+
+`GET /api/nfts/similar/{contract}/{token_id}?limit=N` returns the nearest
+neighbours, ordered by `embedding <=> anchor` cosine distance.
+
+The hash-trick embedding is a one-line stand-in — replace with `fastembed-rs`,
+OpenAI `ada-002`, or any other 384-dim embedder by editing `src/embed.rs`. The
+schema, query, and HTTP surface stay identical.
+
+## The Graph alternative
+
+`subgraph/` contains a parallel indexer expressed as a Graph subgraph:
+
+- `subgraph.yaml` — manifest pointing at the same `IndexedNFT` contract.
+- `schema.graphql` — entity types (`Token`, `Transfer`, `Holder`).
+- `src/mapping.ts` — AssemblyScript `handleTransfer` / `handleMinted`.
+- `abis/IndexedNFT.json` — the two events we care about.
+
+Why both? The Rust indexer wins on push-based realtime (`/ws/events`), custom
+auth (`SIWE`), and embeddable extensions like pgvector. The subgraph wins on
+operational simplicity and hosted infra. `subgraph/README.md` has the full
+trade-off table and deploy commands.
 
 ## Indexing flow
 

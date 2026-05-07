@@ -1,0 +1,22 @@
+[
+  {
+    "type": "event",
+    "name": "Transfer",
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "from", "type": "address"},
+      {"indexed": true, "name": "to", "type": "address"},
+      {"indexed": true, "name": "tokenId", "type": "uint256"}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Minted",
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "to", "type": "address"},
+      {"indexed": true, "name": "tokenId", "type": "uint256"},
+      {"indexed": false, "name": "uri", "type": "string"}
+    ]
+  }
+]

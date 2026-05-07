@@ -75,6 +75,39 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /api/nfts/similar/{contract}/{token_id}:
+    get:
+      summary: pgvector cosine-distance neighbours for an indexed NFT
+      operationId: similarNfts
+      tags: [nfts]
+      description: |
+        Looks up the embedding for `(contract, token_id)` (computed at index time
+        from the NFT's name + URI) and returns the closest other NFTs by
+        `embedding <=> anchor` cosine distance. The embedding column is
+        `vector(384)` and the index is an ivfflat with `vector_cosine_ops`.
+      parameters:
+        - in: path
+          name: contract
+          required: true
+          schema: {$ref: "#/components/schemas/EvmAddress"}
+        - in: path
+          name: token_id
+          required: true
+          schema: {type: string, pattern: "^(0|[1-9][0-9]*)$"}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 100, default: 10}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/SimilarItem"}
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /api/nfts/{contract}/{token_id}:
     get:
       summary: Lookup an NFT by contract + token id
@@ -254,6 +287,22 @@ components:
         block_timestamp:
           type: string
           format: date-time
+
+    SimilarItem:
+      type: object
+      required: [chain_id, contract, token_id, current_owner, distance]
+      properties:
+        chain_id: {type: integer, format: int64}
+        contract: {$ref: "#/components/schemas/EvmAddress"}
+        token_id: {type: string}
+        current_owner: {$ref: "#/components/schemas/EvmAddress"}
+        uri:
+          type: string
+          nullable: true
+        distance:
+          type: number
+          format: double
+          description: pgvector cosine distance (`<=>`); 0 = identical, 2 = opposite.
 
     Nft:
       type: object

@@ -121,6 +121,33 @@ const server = http.createServer(async (req, res) => {
         if (req.method === "GET" && path.startsWith("/api/holders/"))
             return send(res, 200, []);
 
+        if (req.method === "GET" && path.startsWith("/api/nfts/similar/")) {
+            const parts = path.split("/").filter(Boolean);
+            // /api/nfts/similar/{contract}/{token_id}
+            if (parts.length < 5)
+                return send(res, 400, {error: "invalid similar path"});
+            const contract = parts[3];
+            const tokenId = parts[4];
+            return send(res, 200, [
+                {
+                    chain_id: 11155111,
+                    contract,
+                    token_id: String(Number(tokenId) + 1),
+                    current_owner: "0xabc0000000000000000000000000000000000002",
+                    uri: "ipfs://Qm/neighbour-1.json",
+                    distance: 0.04,
+                },
+                {
+                    chain_id: 11155111,
+                    contract,
+                    token_id: String(Number(tokenId) + 7),
+                    current_owner: "0xabc0000000000000000000000000000000000003",
+                    uri: "ipfs://Qm/neighbour-2.json",
+                    distance: 0.18,
+                },
+            ]);
+        }
+
         if (req.method === "GET" && path.startsWith("/api/nfts/"))
             return send(res, 404, {error: "not found"});
 

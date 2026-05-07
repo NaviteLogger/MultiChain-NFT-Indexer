@@ -9,6 +9,7 @@ mod auth;
 mod chain;
 mod config;
 mod db;
+mod embed;
 mod error;
 mod models;
 mod validate;

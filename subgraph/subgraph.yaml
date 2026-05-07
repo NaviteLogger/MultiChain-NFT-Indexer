@@ -1,0 +1,32 @@
+specVersion: 1.0.0
+description: |
+  The Graph alternative for the IndexedNFT contract.
+  Indexes the same Transfer + Minted events the Rust indexer consumes,
+  exposed as a hosted GraphQL endpoint instead of REST + WS.
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: IndexedNFT
+    network: sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: IndexedNFT
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Token
+        - Transfer
+        - Holder
+      abis:
+        - name: IndexedNFT
+          file: ./abis/IndexedNFT.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer
+        - event: Minted(indexed address,indexed uint256,string)
+          handler: handleMinted
+      file: ./src/mapping.ts

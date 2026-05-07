@@ -22,6 +22,7 @@ pub mod auth_routes;
 pub mod events;
 pub mod holders;
 pub mod nfts;
+pub mod similar;
 pub mod stats;
 
 pub struct AppState {
@@ -40,6 +41,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/healthz", get(|| async { "ok" }))
         .route("/api/events", get(events::list))
         .route("/api/nfts/:contract/:token_id", get(nfts::get))
+        .route("/api/nfts/similar/:contract/:token_id", get(similar::get))
         .route("/api/holders/:address", get(holders::get))
         .route("/api/stats", get(stats::get))
         .route("/api/me", get(me))

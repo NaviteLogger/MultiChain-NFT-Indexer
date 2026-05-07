@@ -11,6 +11,7 @@ use chrono::Utc;
 use futures::StreamExt;
 
 use crate::api::AppState;
+use crate::embed::embed;
 use crate::models::EventEnvelope;
 
 sol! {
@@ -208,19 +209,41 @@ async fn upsert_nft_owner(
 }
 
 async fn attach_uri(state: &Arc<AppState>, env: &EventEnvelope) -> anyhow::Result<()> {
+    let uri = env.uri.as_deref().unwrap_or("");
+    let text = format!(
+        "{contract} {token_id} {uri}",
+        contract = env.contract,
+        token_id = env.token_id,
+        uri = uri
+    );
+    let vec = embed(&text);
+    let pgvec = format_pgvector(&vec);
+
     sqlx::query(
         r#"
-        UPDATE nfts SET uri = $4, last_updated = NOW()
+        UPDATE nfts SET uri = $4,
+                        embedding = $5::vector,
+                        last_updated = NOW()
          WHERE chain_id = $1 AND contract = $2 AND token_id = $3
         "#,
     )
     .bind(env.chain_id as i64)
     .bind(&env.contract)
     .bind(&env.token_id)
-    .bind(&env.uri)
+    .bind(uri)
+    .bind(&pgvec)
     .execute(&state.pool)
     .await?;
     Ok(())
+}
+
+fn format_pgvector(v: &[f32]) -> String {
+    let inner = v
+        .iter()
+        .map(|x| format!("{x:.6}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("[{inner}]")
 }
 
 async fn update_high_watermark(state: &Arc<AppState>, block_number: i64) -> anyhow::Result<()> {
