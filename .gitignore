@@ -1,0 +1,36 @@
+# Workspace artifacts
+.devcontainer/
+
+# Node
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+
+# Rust
+target/
+Cargo.lock.bak
+
+# Foundry
+contracts-evm/out/
+contracts-evm/cache/
+contracts-evm/broadcast/
+contracts-evm/.env
+
+# Postgres / docker volumes
+pgdata/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.log

@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+test-results
+playwright-report
+playwright/.cache
+.DS_Store

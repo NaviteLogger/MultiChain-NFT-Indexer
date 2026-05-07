@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: indexer
+      POSTGRES_PASSWORD: indexer
+      POSTGRES_DB: indexer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U indexer -d indexer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  indexer:
+    build: ./indexer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://indexer:indexer@postgres:5432/indexer
+      HTTP_BIND: 0.0.0.0:8080
+      JWT_SECRET: change-me-to-something-32-chars-or-more
+      EVM_CHAIN_ID: "11155111"
+      SIWE_DOMAIN: localhost:3000
+      SIWE_ORIGIN: http://localhost:3000
+      RUST_LOG: info,indexer=debug
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
